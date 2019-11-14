@@ -94,7 +94,7 @@ if __name__ == '__main__':
             images = np.vstack([x])
             classes = reloaded_model.predict(images)
             idx = np.argmax(classes[0])
-            result = f"Prediction: {file} is similar with {labels[idx]}"
+            result = f"Prediction: {labels[idx]}"
             print(result)
             plt.imshow(test_image)
             plt.title(result)

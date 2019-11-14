@@ -2,11 +2,13 @@ __author__ = "https://www.linkedin.com/in/bongsang/"
 __license__ = "MIT"
 
 import os
+from pathlib import Path
 import random
 import argparse
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
+
+import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 
 
@@ -56,57 +58,44 @@ if __name__ == '__main__':
     # ----------------------
     # Predicting test images
     # ----------------------
-    files = []
-    test_path = os.path.join('.', args.test_path)
-    for filename in os.listdir(test_path):
-        if os.path.getsize(os.path.join(test_path, filename)) > 0 and \
-                filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-            files.append(filename)
-        else:
-            print(filename + " is not image file or abnormal, so ignoring.")
-
-    shuffled_files = random.sample(files, len(files))
-    fig_path = os.path.join('.', args.result_path)
     labels = args.labels
-    for file in shuffled_files:
-        test_image = image.load_img(os.path.join(test_path, file), target_size=(28, 28))
-        x = image.img_to_array(test_image)
-        x = np.expand_dims(x, axis=0)
-        images = np.vstack([x])
-        classes = reloaded_model.predict(images)
-        idx = np.argmax(classes[0])
-        result = f"Prediction: {file} is {labels[idx]}"
-        print(result)
-        plt.imshow(test_image)
-        plt.title(result)
-        plt.savefig(os.path.join(fig_path, "predicted_"+file))
+    if args.test_image:
+        filename = Path(args.test_image)
+        if not filename.exists():
+            print(f'Oops! {filename} is not exist!')
+        else:
+            test_image = image.load_img(filename, target_size=(28, 28))
+            x = image.img_to_array(test_image)
+            x = np.expand_dims(x, axis=0)
+            images = np.vstack([x])
+            classes = reloaded_model.predict(images)
+            idx = np.argmax(classes[0])
+            result = f"Prediction: {filename.name} is similar with {labels[idx]}"
+            print(result)
+            plt.imshow(test_image)
+            plt.title(result)
+            plt.savefig(filename.parent / "predicted_" + filename.name)
+    else:
+        files = []
+        test_path = os.path.join('.', args.test_path)
+        for filename in os.listdir(test_path):
+            if os.path.getsize(os.path.join(test_path, filename)) > 0 and \
+                    filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+                files.append(filename)
+            else:
+                print(filename + " is not image file or abnormal, so ignoring.")
 
-
-
-
-# ----------------------
-# Model testing
-# ----------------------
-# print("###### Model testing ######")
-# files = []
-# test_path = join('.', args.test_path)
-# for filename in os.listdir(test_path):
-#     if os.path.getsize(join(test_path, filename)) > 0 and filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-#         files.append(filename)
-#     else:
-#         print(filename + " is not image file or abnormal, so ignoring.")
-#
-# shuffled_files = random.sample(files, len(files))
-# for file in shuffled_files:
-#     test_image = image.load_img(join(test_path, file), target_size=(150, 150))
-#     x = image.img_to_array(test_image)
-#     x = np.expand_dims(x, axis=0)
-#     images = np.vstack([x])
-#     classes = model.predict(images, batch_size=10)
-#     print(classes)
-#
-#     plt.imshow(test_image)
-#     plt.title(classes)
-#     plt.savefig(join(fig_path, "prediction_"+file))
-#
-#
+        shuffled_files = random.sample(files, len(files))
+        fig_path = os.path.join('.', args.result_path)
+        for file in shuffled_files:
+            test_image = image.load_img(os.path.join(test_path, file), target_size=(28, 28))
+            x = image.img_to_array(test_image)
+            x = np.expand_dims(x, axis=0)
+            images = np.vstack([x])
+            classes = reloaded_model.predict(images)
+            idx = np.argmax(classes[0])
+            result = f"Prediction: {file} is similar with {labels[idx]}"
+            print(result)
+            plt.imshow(test_image)
+            plt.title(result)
+            plt.savefig(os.path.join(fig_path, "predicted_"+file))

@@ -1,24 +1,26 @@
 __author__ = "https://www.linkedin.com/in/bongsang/"
 __license__ = "MIT"
-from utils import download
 
+from utils import download
 import os
 from os.path import join
 import zipfile
-import random
-from shutil import copytree
+import argparse
+import glob
+from tqdm import tqdm
+import shutil
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-
-from tensorflow.keras.optimizers import RMSprop
-from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.callbacks import Callback
 
 
-def data_generator(dataset_train_path, dataset_validation_path, augmentation=True):
+def image_data_generator(dataset_train_path, dataset_validation_path, augmentation=True):
     if augmentation:
         # Reducing over-fitting by various augmentation
         train_data_generator = image.ImageDataGenerator(
@@ -46,35 +48,19 @@ def data_generator(dataset_train_path, dataset_validation_path, augmentation=Tru
 
     train_generator = train_data_generator.flow_from_directory(
         dataset_train_path,
-        class_mode="categorical",
-        target_size=(150, 150))
+        batch_size=100,
+        shuffle=True,
+        class_mode="sparse",
+        target_size=(28, 28))
 
     validation_generator = valid_data_generator.flow_from_directory(
         dataset_validation_path,
-        class_mode="categorical",
-        target_size=(150, 150)
+        batch_size=100,
+        class_mode="sparse",
+        target_size=(28, 28)
     )
 
     return train_generator, validation_generator
-
-
-def model_design():
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dropout(rate=0.2),
-        tf.keras.layers.Dense(512, activation='relu'),
-        tf.keras.layers.Dense(3, activation='softmax')
-    ])
-
-    return model
 
 
 class AccCallback(Callback):
@@ -83,24 +69,27 @@ class AccCallback(Callback):
             logs = {}
         elif logs.get('acc') > 0.98:
             self.model.stop_training = True
-            print(f"\nEarly stopping! Epoch: {epoch} \t Accuracy: {round(logs.get('acc') * 100)}%")
+            print(f"\nEarly stopping at epoch: {epoch} \t Accuracy: {round(logs.get('acc')*100)}%")
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(
-        description="ex) python main.py --mode=train --epochs=100 --url=\"http://...\"")
+    parser = argparse.ArgumentParser(description="Amazon's Geographic Mass Classification (Author: Bongsang Kim)")
     parser.add_argument('--mode', default='train', choices=['train', 'test'], required=False)
-    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--url', default="http://aws-proserve-data-science.s3.amazonaws.com/geological_similarity.zip")
+    parser.add_argument('--labels', type=list, nargs='+', default=['andesite', 'gneiss', 'marble', 'quartzite', 'rhyolite', 'schist'])
     parser.add_argument('--download_path', default='download')
+    parser.add_argument('--download_data_path', default='geological_similarity')
     parser.add_argument('--dataset_path', default='dataset')
-    parser.add_argument('--split_rate', type=float, default=1.)
+    parser.add_argument('--split_rate', type=float, default=0.8)
     parser.add_argument('--test_path', default='tests')
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
 
+    # --------------------
     # Tensorflow GPU setup
+    # --------------------
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
@@ -117,34 +106,59 @@ if __name__ == "__main__":
     # Download data from URL and setup dataset
     # ----------------------------------------
     download_path = join('.', args.download_path)
-    download_train_path = join('.', download_path, 'rps')
-    download_validation_path = join('.', download_path, 'rps-test-set')
-    if not os.path.exists(download_path):
-        os.makedirs(download_train_path)
-        os.makedirs(download_validation_path)
-
-        urls = [args.url_train, args.url_test]
-        for url in urls:
-            file = download.from_url(url, download_path)
-            zfile = zipfile.ZipFile(file, 'r')
-            zfile.extractall(download_path)
-            zfile.close()
-
     dataset_path = join('.', args.dataset_path)
     dataset_train_path = join(dataset_path, 'train')
     dataset_validation_path = join(dataset_path, 'validation')
 
+    if not os.path.exists(download_path):
+        os.makedirs(download_path)
+        file = download.from_url(args.url, download_path)
+        zfile = zipfile.ZipFile(file, 'r')
+        zfile.extractall(download_path)
+        zfile.close()
+
     if not os.path.exists(dataset_path):
-        copytree(download_train_path, dataset_train_path)
-        copytree(download_validation_path, dataset_validation_path)
+        os.makedirs(dataset_path)
+
+        for label in args.labels:
+            download_data_label_path = os.path.join(download_path, args.download_data_path, label)
+            label_images = glob.glob(download_data_label_path + '/*.jpg')
+            print(f"{label}: total {len(label_images)} Images")
+            num_train = int(round(len(label_images) * args.split_rate))
+            train_images, validation_images = label_images[:num_train], label_images[num_train:]
+
+            for source_image in tqdm(train_images):
+                destination_path = os.path.join(dataset_train_path, label)
+                if not os.path.exists(destination_path):
+                    os.makedirs(destination_path)
+                shutil.copy(source_image, destination_path)
+
+            for source_image in tqdm(validation_images):
+                destination_path = os.path.join(dataset_validation_path, label)
+                if not os.path.exists(destination_path):
+                    os.makedirs(destination_path)
+                shutil.copy(source_image, destination_path)
 
     # ---------------
     # model designing
     # ---------------
-    model = model_design()
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', input_shape=(28, 28, 3)),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(512, activation='relu'),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(len(args.labels), activation='softmax')
+    ])
     model.compile(
-        optimizer=RMSprop(lr=1e-3),
-        loss=CategoricalCrossentropy(),
+        optimizer=Adam(lr=1e-3),
+        loss=SparseCategoricalCrossentropy(),
         metrics=['acc'])
 
     model.summary()
@@ -154,17 +168,16 @@ if __name__ == "__main__":
     # -------------
     print(f"args.mode={args.mode}")
 
-
     callback = AccCallback()
-    train_generator, validation_generator = data_generator(dataset_train_path, dataset_validation_path)
+    train_generator, validation_generator = image_data_generator(dataset_train_path, dataset_validation_path)
 
     history = model.fit_generator(
         train_generator,
+        steps_per_epoch=int(np.ceil(train_generator.n / float(args.batch_size))),
         epochs=args.epochs,
         validation_data=validation_generator,
-        # callbacks=[callback],
-        verbose=2
-    )
+        validation_steps=int(np.ceil(validation_generator.n / float(args.batch_size))),
+        verbose=2)
 
     # ----------------------
     # Train history plotting
@@ -194,30 +207,13 @@ if __name__ == "__main__":
     plt.legend()
     plt.savefig(join(fig_path, "loss.jpg"))
 
-    # ----------------------
-    # Model testing
-    # ----------------------
-    print("###### Model testing ######")
-    files = []
-    test_path = join('.', args.test_path)
-    for filename in os.listdir(test_path):
-        if os.path.getsize(join(test_path, filename)) > 0 and filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-            files.append(filename)
-        else:
-            print(filename + " is not image file or abnormal, so ignoring.")
+    # ----------
+    # Save model
+    # ----------
+    model_path = join('.', 'model')
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
 
-    shuffled_files = random.sample(files, len(files))
-    for file in shuffled_files:
-        test_image = image.load_img(join(test_path, file), target_size=(150, 150))
-        x = image.img_to_array(test_image)
-        x = np.expand_dims(x, axis=0)
-        images = np.vstack([x])
-        classes = model.predict(images, batch_size=10)
-        print(classes)
-
-        plt.imshow(test_image)
-        plt.title(classes)
-        plt.savefig(join(fig_path, "prediction_"+file))
-
-
-
+    model_save_path = join('.', 'model', "{}.h5".format(int(time.time())))
+    model.save(model_save_path)
+    print(model_save_path + " saved successfully!")

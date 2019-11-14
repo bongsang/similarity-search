@@ -9,8 +9,10 @@ Geological Multi Classification
 <img src="tests/andesite1.jpg" height=150> <img src="tests/gneiss1.jpg.jpg" height=150> <img src="tests/marble1.jpg" height=150>
 
 ## Usage: Training
+#### Everything is automated. 
+- You don't need to any manual configuration. Just enter python main.py
 ```python
-python main.py
+python main.py  # donwload, dataset configuration, training and model saving
 python main.py --epochs=100
 python main.py --epochs=100 --batch_size=64
 # You can seen various options in main.py source code.

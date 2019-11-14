@@ -4,9 +4,8 @@
 Geological Multi Classification
 </h1>
 
-
-## Amazon
-<img src="tests/andesite1.jpg" height=150> <img src="tests/gneiss1.jpg.jpg" height=150> <img src="tests/marble1.jpg" height=150>
+## Solution for Amazon
+<img src="tests/andesite1.jpg" height=150> <img src="tests/gneiss1.jpg.jpg" height=150>
 
 ## Usage: Training
 #### Everything is automated. 

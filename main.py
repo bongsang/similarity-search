@@ -24,7 +24,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
     if augmentation:
         # Reducing over-fitting by various augmentation
         train_data_generator = image.ImageDataGenerator(
-            rescale=1.0 / 255,
+            # rescale=1.0 / 255,
             rotation_range=40,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -34,7 +34,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
             fill_mode='nearest')
 
         valid_data_generator = image.ImageDataGenerator(
-            rescale=1.0 / 255,
+            # rescale=1.0 / 255,
             rotation_range=40,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -51,7 +51,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
         target_size=(28, 28),
         classes=labels,
         class_mode="sparse",
-        batch_size=64,
+        batch_size=100,
         shuffle=True)
 
     validation_generator = valid_data_generator.flow_from_directory(
@@ -59,7 +59,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
         target_size=(28, 28),
         classes=labels,
         class_mode="sparse",
-        batch_size=64,
+        batch_size=100,
         shuffle=True)
 
     return train_generator, validation_generator
@@ -69,7 +69,7 @@ class AccCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         if logs is None:
             logs = {}
-        elif logs.get('acc') > 0.98:
+        elif logs.get('acc') > 0.99:
             self.model.stop_training = True
             print(f"\nEarly stopping at epoch: {epoch} \t Accuracy: {round(logs.get('acc')*100)}%")
 
@@ -78,13 +78,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amazon's Geographic Mass Classification (Author: Bongsang Kim)")
     parser.add_argument('--mode', default='train', choices=['train', 'test'], required=False)
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--url', default="http://aws-proserve-data-science.s3.amazonaws.com/geological_similarity.zip")
     parser.add_argument('--labels', type=list, nargs='+', default=['andesite', 'gneiss', 'marble', 'quartzite', 'rhyolite', 'schist'])
     parser.add_argument('--download_path', default='download')
     parser.add_argument('--download_data_path', default='geological_similarity')
     parser.add_argument('--dataset_path', default='dataset')
-    parser.add_argument('--split_rate', type=float, default=0.8)
+    parser.add_argument('--split_rate', type=float, default=0.9)
     parser.add_argument('--test_path', default='tests')
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
@@ -150,19 +150,20 @@ if __name__ == "__main__":
         tf.keras.layers.MaxPooling2D(2, 2),
         tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
 
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dropout(rate=0.3),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(rate=0.3),
         tf.keras.layers.Dense(len(args.labels), activation='softmax')
     ])
     model.compile(
-        optimizer=Adam(lr=1e-4),
+        optimizer=Adam(lr=1e-3),
         loss=SparseCategoricalCrossentropy(),
         metrics=['acc'])
-
+    print(f'classes : {len(args.labels)} labels')
     model.summary()
 
     # -------------

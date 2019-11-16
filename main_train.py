@@ -4,6 +4,7 @@ __license__ = "MIT"
 from utils import download
 import os
 from os.path import join
+from pathlib import Path
 import zipfile
 import argparse
 import glob
@@ -85,7 +86,8 @@ if __name__ == "__main__":
     parser.add_argument('--download_data_path', default='geological_similarity')
     parser.add_argument('--dataset_path', default='dataset')
     parser.add_argument('--split_rate', type=float, default=0.9)
-    parser.add_argument('--test_path', default='tests')
+    parser.add_argument('--test_path', default='./tests')
+    parser.add_argument('--test_num', type=int, default=2)
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
 
@@ -122,20 +124,30 @@ if __name__ == "__main__":
 
     if not os.path.exists(dataset_path):
         os.makedirs(dataset_path)
+        test_path = Path(args.test_path)
+        print(test_path)
+        os.makedirs(test_path)
 
         for label in args.labels:
             download_data_label_path = os.path.join(download_path, args.download_data_path, label)
             label_images = glob.glob(download_data_label_path + '/*.jpg')
             print(f"{label}: total {len(label_images)} Images")
             num_train = int(round(len(label_images) * args.split_rate))
-            train_images, validation_images = label_images[:num_train], label_images[num_train:]
 
+            # For testing
+            test_images = label_images[:args.test_num]
+            for source_image, idx in enumerate(test_images):
+                shutil.copy(source_image, test_path)
+
+            # For training
+            train_images, validation_images = label_images[args.test_num:num_train], label_images[num_train:]
             for source_image in tqdm(train_images):
                 destination_path = os.path.join(dataset_train_path, label)
                 if not os.path.exists(destination_path):
                     os.makedirs(destination_path)
                 shutil.copy(source_image, destination_path)
 
+            # For validating
             for source_image in tqdm(validation_images):
                 destination_path = os.path.join(dataset_validation_path, label)
                 if not os.path.exists(destination_path):

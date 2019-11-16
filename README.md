@@ -14,7 +14,7 @@ Geological Multi Classification
 python main.py  # donwload, dataset configuration, training and model saving
 python main.py --epochs=100
 python main.py --epochs=100 --batch_size=64
-# You can seen various options in main.py source code.
+main_training.py
 ```
 
 ## Usage: Predicting

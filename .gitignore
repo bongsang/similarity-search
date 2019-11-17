@@ -106,6 +106,7 @@ venv.bak/
 # PyCharm
 .idea/
 
-# download, dataset
+# download, dataset, test directory
 download/
 dataset/
+tests/

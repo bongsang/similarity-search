@@ -25,7 +25,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
     if augmentation:
         # Reducing over-fitting by various augmentation
         train_data_generator = image.ImageDataGenerator(
-            # rescale=1.0 / 255,
+            rescale=1.0 / 255,
             rotation_range=40,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -35,7 +35,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
             fill_mode='nearest')
 
         valid_data_generator = image.ImageDataGenerator(
-            # rescale=1.0 / 255,
+            rescale=1.0 / 255,
             rotation_range=40,
             width_shift_range=0.2,
             height_shift_range=0.2,
@@ -52,7 +52,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
         target_size=(28, 28),
         classes=labels,
         class_mode="sparse",
-        batch_size=100,
+        batch_size=128,
         shuffle=True)
 
     validation_generator = valid_data_generator.flow_from_directory(
@@ -60,8 +60,7 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
         target_size=(28, 28),
         classes=labels,
         class_mode="sparse",
-        batch_size=100,
-        shuffle=True)
+        batch_size=128)
 
     return train_generator, validation_generator
 
@@ -79,14 +78,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amazon's Geographic Mass Classification (Author: Bongsang Kim)")
     parser.add_argument('--mode', default='train', choices=['train', 'test'], required=False)
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--url', default="http://aws-proserve-data-science.s3.amazonaws.com/geological_similarity.zip")
     parser.add_argument('--labels', type=list, nargs='+', default=['andesite', 'gneiss', 'marble', 'quartzite', 'rhyolite', 'schist'])
-    parser.add_argument('--download_path', default='download')
+    parser.add_argument('--download_path', default='./download')
     parser.add_argument('--download_data_path', default='geological_similarity')
-    parser.add_argument('--dataset_path', default='dataset')
-    parser.add_argument('--split_rate', type=float, default=0.9)
+    parser.add_argument('--dataset_path', default='./dataset')
     parser.add_argument('--test_path', default='./tests')
+    parser.add_argument('--model_path', default='./models')
+    parser.add_argument('--split_rate', type=float, default=0.9)
     parser.add_argument('--test_num', type=int, default=2)
     parser.add_argument('--result_path', default='results')
     args = parser.parse_args()
@@ -110,10 +110,11 @@ if __name__ == "__main__":
     # Download data from URL and setup dataset
     # ----------------------------------------
     print(args.labels)
-    download_path = join('.', args.download_path)
-    dataset_path = join('.', args.dataset_path)
-    dataset_train_path = join(dataset_path, 'train')
-    dataset_validation_path = join(dataset_path, 'validation')
+    download_path = Path(args.download_path)
+    dataset_path = Path(args.dataset_path)
+    test_path = Path(args.test_path)
+    dataset_train_path = dataset_path / 'train'
+    dataset_validation_path = dataset_path / 'validation'
 
     if not os.path.exists(download_path):
         os.makedirs(download_path)
@@ -122,11 +123,11 @@ if __name__ == "__main__":
         zfile.extractall(download_path)
         zfile.close()
 
+    if not os.path.exists(test_path):
+        os.makedirs(test_path)
+
     if not os.path.exists(dataset_path):
         os.makedirs(dataset_path)
-        test_path = Path(args.test_path)
-        print(test_path)
-        os.makedirs(test_path)
 
         for label in args.labels:
             download_data_label_path = os.path.join(download_path, args.download_data_path, label)
@@ -136,8 +137,11 @@ if __name__ == "__main__":
 
             # For testing
             test_images = label_images[:args.test_num]
-            for source_image, idx in enumerate(test_images):
-                shutil.copy(source_image, test_path)
+            for idx, source in enumerate(test_images):
+                destination = test_path / f'{label}_test_{idx}.jpg'
+                print(source)
+                print(destination)
+                shutil.copy(source, destination)
 
             # For training
             train_images, validation_images = label_images[args.test_num:num_train], label_images[num_train:]
@@ -158,17 +162,19 @@ if __name__ == "__main__":
     # model designing
     # ---------------
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 3)),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 3)),
         tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Dropout(rate=0.2),
         tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Dropout(rate=0.2),
 
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dropout(rate=0.3),
         tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(rate=0.3),
+        tf.keras.layers.Dropout(rate=0.5),
         tf.keras.layers.Dense(len(args.labels), activation='softmax')
     ])
     model.compile(
@@ -185,6 +191,7 @@ if __name__ == "__main__":
     train_generator, validation_generator = \
         image_data_generator(dataset_train_path, dataset_validation_path, args.labels)
 
+    print("###### Model Pitting ######")
     history = model.fit_generator(
         train_generator,
         steps_per_epoch=int(np.ceil(train_generator.n / float(args.batch_size))),
@@ -193,11 +200,24 @@ if __name__ == "__main__":
         validation_steps=int(np.ceil(validation_generator.n / float(args.batch_size))),
         verbose=2)
 
+    # ------------
+    # Model Saving
+    # ------------
+    print("###### Model Saving ######")
+    timestamp = int(time.time())
+    model_path = Path(args.model_path)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
+    file_path = model_path / f"{timestamp}.h5"
+    model.save(file_path)
+    print(file_path.name + " saved successfully!")
+
+
     # ----------------------
     # Train history plotting
     # ----------------------
     print("###### Model Plotting ######")
-    timestamp = int(time.time())
     fig_path = join(".", args.result_path)
     if not os.path.exists(fig_path):
         os.makedirs(fig_path)
@@ -212,22 +232,11 @@ if __name__ == "__main__":
     plt.plot(epochs, val_acc, 'b', label='Validation accuracy')
     plt.title('Training and validation accuracy')
     plt.legend()
-    plt.savefig(join(fig_path, f"{timestamp}_accuracy.jpg"))
+    plt.savefig(join(fig_path, f"{timestamp}_acc_history.jpg"))
 
     plt.figure()
     plt.plot(epochs, loss, 'r', label='Training Loss')
     plt.plot(epochs, val_loss, 'b', label='Validation Loss')
     plt.title('Training and validation loss')
     plt.legend()
-    plt.savefig(join(fig_path, f"{timestamp}_loss.jpg"))
-
-    # ----------
-    # Save model
-    # ----------
-    model_path = join('.', 'model')
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-
-    model_save_path = join('.', 'model', f"{timestamp}.h5")
-    model.save(model_save_path)
-    print(model_save_path + " saved successfully!")
+    plt.savefig(join(fig_path, f"{timestamp}_loss_history.jpg"))

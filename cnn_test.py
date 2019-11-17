@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
-
+from sklearn.metrics import confusion_matrix
 
 if __name__ == '__main__':
     # --------------------
@@ -62,51 +62,70 @@ if __name__ == '__main__':
     print(model_file)
     print("Model loaded successfully!")
 
+    dataset_validation_path = Path('./dataset/validation')
+    test_path = Path('./tests')
+    valid_data_generator = image.ImageDataGenerator(rescale=1.0 / 255)
+    validation_generator = valid_data_generator.flow_from_directory(
+        dataset_validation_path,
+        target_size=(28, 28),
+        batch_size=64,
+    )
+
+    preds = reloaded_model.predict_generator(generator=validation_generator)
+    print(preds.shape)
+    print(preds[0])
+    print(np.argmax(preds[0]))
+    print(args.labels[np.argmax(preds[0])])
+    print(len(validation_generator.filenames))
+    print(validation_generator.filenames[0])
+
+    # confusion_matrix(validation_generator.classes, [np.round(x) for x in preds])
+
     # ----------------------
     # Predicting test images
     # ----------------------
-    labels = args.labels
-    if args.test_image:
-        filename = Path(args.test_image)
-        if not filename.exists():
-            print(f'Oops! {filename} is not existing!')
-        else:
-            test_image = image.load_img(filename, target_size=(28, 28))
-            x = image.img_to_array(test_image)
-            x = np.expand_dims(x, axis=0)
-            images = np.vstack([x])
-            classes = reloaded_model.predict(images)
-            idx = np.argmax(classes[0])
-            result = f"Prediction: {filename.name} is similar with {labels[idx]}"
-            print(result)
-            plt.imshow(test_image)
-            plt.title(result)
-            plt.savefig(filename.parent / model_file.stem + '_' + filename.name)
-    else:
-        files = []
-        test_path = Path(args.test_path)
-        for filename in os.listdir(test_path):
-            file_path = test_path / filename
-            if os.path.getsize(file_path) > 0 and \
-                    filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-                files.append(filename)
-
-        shuffled_files = random.sample(files, len(files))
-        result_path = Path(args.result_path)
-        if not os.path.exists(result_path):
-            os.makedirs(result_path)
-
-        for file_name in shuffled_files:
-            file_path = test_path / file_name
-            test_image = image.load_img(file_path, target_size=(28, 28))
-            x = image.img_to_array(test_image)
-            x = np.expand_dims(x, axis=0)
-            images = np.vstack([x])
-            classes = reloaded_model.predict(images)
-            idx = np.argmax(classes[0])
-            result = f"Origin : {file_name} >> Prediction: {labels[idx]}"
-            print(result)
-            plt.imshow(test_image)
-            plt.title(result)
-            result_file = result_path / f"{model_file.stem}_{file_name}"
-            plt.savefig(result_file)
+    # labels = args.labels
+    # if args.test_image:
+    #     filename = Path(args.test_image)
+    #     if not filename.exists():
+    #         print(f'Oops! {filename} is not existing!')
+    #     else:
+    #         test_image = image.load_img(filename, target_size=(28, 28))
+    #         x = image.img_to_array(test_image)
+    #         x = np.expand_dims(x, axis=0)
+    #         images = np.vstack([x])
+    #         classes = reloaded_model.predict(images)
+    #         idx = np.argmax(classes[0])
+    #         result = f"Prediction: {filename.name} is similar with {labels[idx]}"
+    #         print(result)
+    #         plt.imshow(test_image)
+    #         plt.title(result)
+    #         plt.savefig(filename.parent / model_file.stem + '_' + filename.name)
+    # else:
+    #     files = []
+    #     test_path = Path(args.test_path)
+    #     for filename in os.listdir(test_path):
+    #         file_path = test_path / filename
+    #         if os.path.getsize(file_path) > 0 and \
+    #                 filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+    #             files.append(filename)
+    #
+    #     shuffled_files = random.sample(files, len(files))
+    #     result_path = Path(args.result_path)
+    #     if not os.path.exists(result_path):
+    #         os.makedirs(result_path)
+    #
+    #     for file_name in shuffled_files:
+    #         file_path = test_path / file_name
+    #         test_image = image.load_img(file_path, target_size=(28, 28))
+    #         x = image.img_to_array(test_image)
+    #         x = np.expand_dims(x, axis=0)
+    #         images = np.vstack([x])
+    #         classes = reloaded_model.predict(images)
+    #         idx = np.argmax(classes[0])
+    #         result = f"Origin : {file_name} >> Prediction: {labels[idx]}"
+    #         print(result)
+    #         plt.imshow(test_image)
+    #         plt.title(result)
+    #         result_file = result_path / f"{model_file.stem}_{file_name}"
+    #         plt.savefig(result_file)

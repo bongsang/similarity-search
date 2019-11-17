@@ -68,7 +68,7 @@ class AccCallback(Callback):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amazon's Geographic Mass Classification (Author: Bongsang Kim)")
     parser.add_argument('--mode', default='train', choices=['train', 'test'], required=False)
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=250)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--url', default="http://aws-proserve-data-science.s3.amazonaws.com/geological_similarity.zip")
     parser.add_argument('--labels', type=list, nargs='+', default=['andesite', 'gneiss', 'marble', 'quartzite', 'rhyolite', 'schist'])

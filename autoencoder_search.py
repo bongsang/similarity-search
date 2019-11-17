@@ -80,7 +80,12 @@ if __name__ == '__main__':
 
     intermediate_output = intermediate_layer_model.predict_generator(
         generator=similarity_generator,
-        steps=26986)
+        steps=128)
+
+    plt.figure(figsize=(10, 10))
+    plt.scatter(intermediate_output[:, 0], intermediate_output[:, 1], cmap='brg')
+    plt.colorbar()
+    plt.show()
 
     print(intermediate_output.shape)
 
@@ -107,7 +112,7 @@ if __name__ == '__main__':
     cosine = similarity * inv_mag
     cosine = cosine.T * inv_mag
 
-    origin = 10
+    origin = 13
     print(similarity_generator.filenames[origin])
     similarity = np.argsort(cosine[origin])[::-1][:5]
 

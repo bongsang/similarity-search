@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.callbacks import Callback
 
@@ -33,34 +33,25 @@ def image_data_generator(dataset_train_path, dataset_validation_path, labels, au
             zoom_range=0.2,
             horizontal_flip=True,
             fill_mode='nearest')
-
-        valid_data_generator = image.ImageDataGenerator(
-            rescale=1.0 / 255,
-            rotation_range=40,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            shear_range=0.2,
-            zoom_range=0.2,
-            horizontal_flip=True,
-            fill_mode='nearest')
     else:
         train_data_generator = image.ImageDataGenerator(rescale=1.0 / 255)
-        valid_data_generator = image.ImageDataGenerator(rescale=1.0 / 255)
+
+    valid_data_generator = image.ImageDataGenerator(rescale=1.0 / 255)
 
     train_generator = train_data_generator.flow_from_directory(
         dataset_train_path,
         target_size=(28, 28),
+        batch_size=64,
         classes=labels,
-        class_mode="sparse",
-        batch_size=128,
-        shuffle=True)
+        shuffle=True,
+        class_mode="sparse")
 
     validation_generator = valid_data_generator.flow_from_directory(
         dataset_validation_path,
         target_size=(28, 28),
+        batch_size=64,
         classes=labels,
-        class_mode="sparse",
-        batch_size=128)
+        class_mode="sparse")
 
     return train_generator, validation_generator
 
@@ -77,8 +68,8 @@ class AccCallback(Callback):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Amazon's Geographic Mass Classification (Author: Bongsang Kim)")
     parser.add_argument('--mode', default='train', choices=['train', 'test'], required=False)
-    parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--url', default="http://aws-proserve-data-science.s3.amazonaws.com/geological_similarity.zip")
     parser.add_argument('--labels', type=list, nargs='+', default=['andesite', 'gneiss', 'marble', 'quartzite', 'rhyolite', 'schist'])
     parser.add_argument('--download_path', default='./download')
@@ -162,24 +153,21 @@ if __name__ == "__main__":
     # model designing
     # ---------------
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 3)),
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', input_shape=(28, 28, 3)),
         tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
         tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(rate=0.2),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(rate=0.2),
 
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(rate=0.5),
-        tf.keras.layers.Dense(len(args.labels), activation='softmax')
+        tf.keras.layers.Dense(512, activation='relu'),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(len(args.labels), activation=tf.nn.softmax)
     ])
     model.compile(
-        optimizer=Adam(lr=1e-3),
-        loss=SparseCategoricalCrossentropy(),
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy',
         metrics=['acc'])
     print(f'classes : {len(args.labels)} labels')
     model.summary()
@@ -194,10 +182,10 @@ if __name__ == "__main__":
     print("###### Model Pitting ######")
     history = model.fit_generator(
         train_generator,
-        steps_per_epoch=int(np.ceil(train_generator.n / float(args.batch_size))),
+        steps_per_epoch=train_generator.n // args.batch_size,
         epochs=args.epochs,
         validation_data=validation_generator,
-        validation_steps=int(np.ceil(validation_generator.n / float(args.batch_size))),
+        validation_steps=validation_generator.n // args.batch_size,
         verbose=2)
 
     # ------------

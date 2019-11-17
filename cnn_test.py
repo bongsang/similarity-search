@@ -108,5 +108,5 @@ if __name__ == '__main__':
             print(result)
             plt.imshow(test_image)
             plt.title(result)
-            result_file = result_path / f"model-{model_file.stem}_{file_name}"
+            result_file = result_path / f"{model_file.stem}_{file_name}"
             plt.savefig(result_file)

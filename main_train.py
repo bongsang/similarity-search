@@ -218,9 +218,9 @@ if __name__ == "__main__":
     # Train history plotting
     # ----------------------
     print("###### Model Plotting ######")
-    fig_path = join(".", args.result_path)
-    if not os.path.exists(fig_path):
-        os.makedirs(fig_path)
+    result_path = Path(args.result_path)
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
     acc = history.history['acc']
     val_acc = history.history['val_acc']
@@ -232,11 +232,11 @@ if __name__ == "__main__":
     plt.plot(epochs, val_acc, 'b', label='Validation accuracy')
     plt.title('Training and validation accuracy')
     plt.legend()
-    plt.savefig(join(fig_path, f"{timestamp}_acc_history.jpg"))
+    plt.savefig(result_path / f"model-{timestamp}_acc_history.jpg")
 
     plt.figure()
     plt.plot(epochs, loss, 'r', label='Training Loss')
     plt.plot(epochs, val_loss, 'b', label='Validation Loss')
     plt.title('Training and validation loss')
     plt.legend()
-    plt.savefig(join(fig_path, f"{timestamp}_loss_history.jpg"))
+    plt.savefig(result_path / f"model-{timestamp}_loss_history.jpg")

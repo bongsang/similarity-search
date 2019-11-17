@@ -81,7 +81,7 @@ if __name__ == '__main__':
             print(result)
             plt.imshow(test_image)
             plt.title(result)
-            plt.savefig(filename.parent / "predicted_" + filename.name)
+            plt.savefig(filename.parent / model_file.stem + '_' + filename.name)
     else:
         files = []
         test_path = Path(args.test_path)
@@ -90,8 +90,6 @@ if __name__ == '__main__':
             if os.path.getsize(file_path) > 0 and \
                     filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
                 files.append(filename)
-            else:
-                print(filename + " is not image file or abnormal, so ignoring.")
 
         shuffled_files = random.sample(files, len(files))
         result_path = Path(args.result_path)
@@ -110,5 +108,5 @@ if __name__ == '__main__':
             print(result)
             plt.imshow(test_image)
             plt.title(result)
-            result_file = result_path / f"predicted_{file_name}"
+            result_file = result_path / f"model-{model_file.stem}_{file_name}"
             plt.savefig(result_file)

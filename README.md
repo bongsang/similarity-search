@@ -22,8 +22,8 @@ python main.py --test_path=your/directory  # You can change default test directo
 ```
 
 ## Training results
-![accuracy](results/1573980772_accuracy.jpg)
-![loss](results/1573980772_loss.jpg)
+![accuracy](results/model-1574005294_acc_history.jpg.jpg)
+![loss](results/model-1574005294_loss_history.jpg.jpg)
 
 
 # Enjoy!
